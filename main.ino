@@ -208,6 +208,26 @@ void get_values_ina219(){
 }
 
 //----------> Rotinas do motor de passo
+int ina_status = 0;
+int ina_limit = 500;
+
+void gauge_stepper(){
+  ina_status = analogRead(A6); //Faz leitura de corrente
+
+  if(ina_status>ina_limit){ //Está apertado? 
+    //Sim... Segue para calibração da célula de oxigênio
+    alert("Perfeito!");  
+    delay(500);
+    
+  }else{//Não... Gera mais x passos
+    alert("Novo ajuste");
+    delay(250);
+    alert(String(ina_status));
+    delay(250);
+    gauge_stepper(); //Novo ajuste
+  }
+}
+
 
 //----------> Rotina de setup
 void setup()
@@ -215,6 +235,7 @@ void setup()
   lcd_init();
   btn_interface_init();
   ina219_init();
+  gauge_stepper();
 }
 
 //----------> Rotina de loop
@@ -224,5 +245,6 @@ void loop()
   btn_set_check();
   btn_up_check();
   btn_down_check();
-  get_values_ina219();
+  // get_values_ina219();
+  
 }
