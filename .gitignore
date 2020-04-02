@@ -67,3 +67,9 @@ bin/preproc/ctags_target_for_gcc_minus_e.cpp
 bin/sketch/main.ino.cpp
 bin/sketch/main.ino.cpp.d
 bin/sketch/main.ino.cpp.o
+bin/libraries/Adafruit_INA219/Adafruit_INA219.cpp.d
+bin/libraries/Adafruit_INA219/Adafruit_INA219.cpp.o
+bin/libraries/Wire/Wire.cpp.d
+bin/libraries/Wire/Wire.cpp.o
+bin/libraries/Wire/utility/twi.c.o
+bin/libraries/Wire/utility/twi.c.d

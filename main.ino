@@ -1,5 +1,8 @@
 //----------> Inclusão das bibliotecas
 #include <LiquidCrystal.h>
+#include <Stepper.h>
+#include <Wire.h>
+#include <Adafruit_INA219.h>        // https://github.com/adafruit/Adafruit_INA219
 
 //----------> Definição de pinagem
 #define btn_menu 10  
@@ -7,6 +10,18 @@
 #define btn_up 8
 #define btn_down 7
 #define buzzer 6
+#define step_dir_1 A0
+#define step_dir_2 A2
+#define step_1 A1
+#define step_2 A3
+
+// 0x40 Offset = binary 00000 (no jumpers required)
+// 0x41 Offset = binary 00001 (bridge A0)
+// Address = 0x44 Offset = binary 00100 (bridge A1)
+// Address = 0x45 Offset = binary 00101 (bridge A0 & A1)
+
+#define INA_addr1 0x40  // Endereço INA219
+#define INA_addr2 0x41  // Endereço INA219
 
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 
@@ -163,11 +178,43 @@ void btn_down_check(){
     }
     last_down_state = read_down;
 }
+
+//----------> Variáveis do sensor ina219
+float shuntvoltage_1 = 0;
+float busvoltage_1 = 0;
+float current_mA_1 = 0;
+float loadvoltage_1 = 0;
+
+unsigned long last_deb_ina = 0;  //Controle de delay do sensor ina
+unsigned long debouncing_delay_ina = 100;  //Tempo de estabilização de debouncing
+
+//----------> Inicialização do sensor ina219
+Adafruit_INA219 ina219_1(INA_addr1); 
+
+void ina219_init(){
+  ina219_1.begin();
+}
+
+void get_values_ina219(){
+  
+  if ((millis() - last_deb_ina) > debouncing_delay_ina) {
+    last_deb_ina = millis();
+    shuntvoltage_1 = ina219_1.getShuntVoltage_mV();
+    busvoltage_1 = ina219_1.getBusVoltage_V();
+    current_mA_1 = ina219_1.getCurrent_mA();
+    loadvoltage_1 = busvoltage_1 + (shuntvoltage_1/1000);
+    alert(String(current_mA_1));
+  }  
+}
+
+//----------> Rotinas do motor de passo
+
 //----------> Rotina de setup
 void setup()
 {
   lcd_init();
   btn_interface_init();
+  ina219_init();
 }
 
 //----------> Rotina de loop
@@ -177,4 +224,5 @@ void loop()
   btn_set_check();
   btn_up_check();
   btn_down_check();
+  get_values_ina219();
 }
