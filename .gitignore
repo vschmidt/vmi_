@@ -73,3 +73,5 @@ bin/libraries/Wire/Wire.cpp.d
 bin/libraries/Wire/Wire.cpp.o
 bin/libraries/Wire/utility/twi.c.o
 bin/libraries/Wire/utility/twi.c.d
+bin/libraries/Stepper/Stepper.cpp.d
+bin/libraries/Stepper/Stepper.cpp.o

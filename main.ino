@@ -2,7 +2,6 @@
 #include <LiquidCrystal.h>
 #include <Stepper.h>
 #include <Wire.h>
-#include <Adafruit_INA219.h>        // https://github.com/adafruit/Adafruit_INA219
 
 //----------> Definição de pinagem
 #define btn_menu 10  
@@ -14,14 +13,9 @@
 #define step_dir_2 A2
 #define step_1 A1
 #define step_2 A3
-
-// 0x40 Offset = binary 00000 (no jumpers required)
-// 0x41 Offset = binary 00001 (bridge A0)
-// Address = 0x44 Offset = binary 00100 (bridge A1)
-// Address = 0x45 Offset = binary 00101 (bridge A0 & A1)
-
-#define INA_addr1 0x40  // Endereço INA219
-#define INA_addr2 0x41  // Endereço INA219
+#define stepsPerRevolution 600
+#define gaugue_1 1
+#define gaugue_2 0
 
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 
@@ -179,42 +173,52 @@ void btn_down_check(){
     last_down_state = read_down;
 }
 
-//----------> Variáveis do sensor ina219
-float shuntvoltage_1 = 0;
-float busvoltage_1 = 0;
-float current_mA_1 = 0;
-float loadvoltage_1 = 0;
-
-unsigned long last_deb_ina = 0;  //Controle de delay do sensor ina
-unsigned long debouncing_delay_ina = 100;  //Tempo de estabilização de debouncing
-
-//----------> Inicialização do sensor ina219
-Adafruit_INA219 ina219_1(INA_addr1); 
-
-void ina219_init(){
-  ina219_1.begin();
-}
-
-void get_values_ina219(){
-  
-  if ((millis() - last_deb_ina) > debouncing_delay_ina) {
-    last_deb_ina = millis();
-    shuntvoltage_1 = ina219_1.getShuntVoltage_mV();
-    busvoltage_1 = ina219_1.getBusVoltage_V();
-    current_mA_1 = ina219_1.getCurrent_mA();
-    loadvoltage_1 = busvoltage_1 + (shuntvoltage_1/1000);
-    alert(String(current_mA_1));
-  }  
-}
-
 //----------> Rotinas do motor de passo
+void step_init(){
+  pinMode(step_1, OUTPUT);
+  pinMode(step_dir_1, OUTPUT);
+  pinMode(step_2, OUTPUT);
+  pinMode(step_dir_2, OUTPUT);
+  pinMode(gaugue_1,INPUT);
+  pinMode(gaugue_2,INPUT);
+}
+
+void gauge_stepper(int step_dir, int gaugue, int step){
+  int gaugue_status = digitalRead(gaugue);
+  
+  digitalWrite(step_dir, HIGH);
+  
+  if(not gaugue_status){ //Está apertado? 
+    //Sim... Segue para calibração da célula de oxigênio
+    alert("Perfeito!");  
+    delay(500);
+    
+  }else{//Não...
+    alert("Novo ajuste");
+    delay(250);
+    alert(String(gaugue_status));
+    delay(250);
+    
+    for (int i = 0; i < stepsPerRevolution; i++) { //Gera mais 200 passos
+      // These four lines result in 1 step:
+      digitalWrite(step, HIGH);
+      delayMicroseconds(200);
+      digitalWrite(step, LOW);
+      delayMicroseconds(200);
+    }
+
+    gauge_stepper(step_dir, gaugue, step); //Novo ajuste
+  }
+}
 
 //----------> Rotina de setup
 void setup()
 {
   lcd_init();
   btn_interface_init();
-  ina219_init();
+  step_init();
+  gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
+  gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2
 }
 
 //----------> Rotina de loop
@@ -224,5 +228,4 @@ void loop()
   btn_set_check();
   btn_up_check();
   btn_down_check();
-  get_values_ina219();
 }
