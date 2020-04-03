@@ -15,7 +15,7 @@
 #define step_2 A3
 #define stepsPerRevolution 600
 #define gaugue_1 1
-#define gaugue_2 2
+#define gaugue_2 0
 
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 
@@ -183,8 +183,11 @@ void step_init(){
   pinMode(gaugue_2,INPUT);
 }
 
-void gauge_stepper(){
-  int gaugue_status = digitalRead(gaugue_1);
+void gauge_stepper(int step_dir, int gaugue, int step){
+  int gaugue_status = digitalRead(gaugue);
+  
+  digitalWrite(step_dir, HIGH);
+  
   if(not gaugue_status){ //Está apertado? 
     //Sim... Segue para calibração da célula de oxigênio
     alert("Perfeito!");  
@@ -198,13 +201,13 @@ void gauge_stepper(){
     
     for (int i = 0; i < stepsPerRevolution; i++) { //Gera mais 200 passos
       // These four lines result in 1 step:
-      digitalWrite(step_1, HIGH);
-      delayMicroseconds(1000);
-      digitalWrite(step_1, LOW);
-      delayMicroseconds(1000);
+      digitalWrite(step, HIGH);
+      delayMicroseconds(200);
+      digitalWrite(step, LOW);
+      delayMicroseconds(200);
     }
 
-    gauge_stepper(); //Novo ajuste
+    gauge_stepper(step_dir, gaugue, step); //Novo ajuste
   }
 }
 
@@ -214,7 +217,8 @@ void setup()
   lcd_init();
   btn_interface_init();
   step_init();
-  gauge_stepper();
+  gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
+  gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2
 }
 
 //----------> Rotina de loop
