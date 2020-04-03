@@ -14,6 +14,9 @@
 #define step_dir_2 A2
 #define step_1 A1
 #define step_2 A3
+#define stepsPerRevolution 600
+#define gaugue_1 1
+#define gaugue_2 2
 
 // 0x40 Offset = binary 00000 (no jumpers required)
 // 0x41 Offset = binary 00001 (bridge A0)
@@ -209,21 +212,40 @@ void get_values_ina219(){
 
 //----------> Rotinas do motor de passo
 int ina_status = 0;
-int ina_limit = 500;
+
+void step_init(){
+  pinMode(step_1, OUTPUT);
+  pinMode(step_dir_1, OUTPUT);
+  pinMode(step_2, OUTPUT);
+  pinMode(step_dir_2, OUTPUT);
+  pinMode(gaugue_1,INPUT);
+  pinMode(gaugue_2,INPUT);
+}
 
 void gauge_stepper(){
-  ina_status = analogRead(A6); //Faz leitura de corrente
+  
+  ina_status = digitalRead(gaugue_1); //Faz leitura de corrente
+  // ina_status = digitalRead(gaugue_2); //Faz leitura de corrente
 
-  if(ina_status>ina_limit){ //Está apertado? 
+  if(not ina_status){ //Está apertado? 
     //Sim... Segue para calibração da célula de oxigênio
     alert("Perfeito!");  
     delay(500);
     
-  }else{//Não... Gera mais x passos
+  }else{//Não...
     alert("Novo ajuste");
     delay(250);
     alert(String(ina_status));
     delay(250);
+    
+    for (int i = 0; i < stepsPerRevolution; i++) { //Gera mais 200 passos
+      // These four lines result in 1 step:
+      digitalWrite(step_1, HIGH);
+      delayMicroseconds(1000);
+      digitalWrite(step_1, LOW);
+      delayMicroseconds(1000);
+    }
+
     gauge_stepper(); //Novo ajuste
   }
 }
@@ -235,6 +257,7 @@ void setup()
   lcd_init();
   btn_interface_init();
   ina219_init();
+  step_init();
   gauge_stepper();
 }
 
@@ -245,6 +268,5 @@ void loop()
   btn_set_check();
   btn_up_check();
   btn_down_check();
-  // get_values_ina219();
   
 }
