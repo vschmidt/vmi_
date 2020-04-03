@@ -13,9 +13,10 @@
 #define step_dir_2 A2
 #define step_1 A1
 #define step_2 A3
-#define stepsPerRevolution 600
+#define stepsPerRevolution 200
 #define gaugue_1 1
 #define gaugue_2 0
+#define gauge_oxi A4
 
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 
@@ -185,30 +186,51 @@ void step_init(){
 
 void gauge_stepper(int step_dir, int gaugue, int step){
   int gaugue_status = digitalRead(gaugue);
-  
+
   digitalWrite(step_dir, HIGH);
   
-  if(not gaugue_status){ //Está apertado? 
-    //Sim... Segue para calibração da célula de oxigênio
-    alert("Perfeito!");  
-    delay(500);
-    
-  }else{//Não...
-    alert("Novo ajuste");
-    delay(250);
-    alert(String(gaugue_status));
-    delay(250);
-    
-    for (int i = 0; i < stepsPerRevolution; i++) { //Gera mais 200 passos
-      // These four lines result in 1 step:
+  if(gaugue_status){ //Está apertado? 
+    //Não...
+
+    for (int i = 0; i < stepsPerRevolution/100; i++) { //Muda 1.8º do motor a cada loop
       digitalWrite(step, HIGH);
-      delayMicroseconds(200);
+      delayMicroseconds(1000);
       digitalWrite(step, LOW);
-      delayMicroseconds(200);
-    }
+      delayMicroseconds(1000);
+    }   
 
     gauge_stepper(step_dir, gaugue, step); //Novo ajuste
   }
+}
+
+//----------> Rotinas da célula de oxigênio
+int oxi_cell_tol = 50;
+
+void oxi_cell_init(){
+  pinMode(gauge_oxi, INPUT);
+}
+
+void gauge_oxi_cell(){
+  digitalWrite(step_dir_1, LOW); //Seta o sentido de giro anti horário
+  
+  for (int i = 0; i < stepsPerRevolution; i++) { //Abre 100% a linha de oxigenio
+    digitalWrite(step_1, HIGH);
+    delayMicroseconds(1000);
+    digitalWrite(step_1, LOW);
+    delayMicroseconds(1000);
+  }
+  
+  delay(500); //Espera x
+  
+  float oxi_cell_read = analogRead(gauge_oxi); //Verifica a tensão da célula
+
+  if(((512 - oxi_cell_tol) < oxi_cell_read) and (oxi_cell_read < (512 + oxi_cell_tol))){
+    check("Calibrado!");
+    delay(500);
+  }else{ //Precisa de ajuste
+    alert("Célula precisa de substituição!");
+    delay(500);
+  } 
 }
 
 //----------> Rotina de setup
@@ -219,6 +241,8 @@ void setup()
   step_init();
   gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
   gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2
+  oxi_cell_init();
+  gauge_oxi_cell();
 }
 
 //----------> Rotina de loop
