@@ -17,6 +17,7 @@
 #define gaugue_1 1
 #define gaugue_2 0
 #define gauge_oxi A4
+#define bat_sensor A5
 
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 
@@ -31,34 +32,17 @@ byte Speaker[8] = {B00001, B00011,B01111,B01111,B01111,B00011,B00001,B00000};
 byte Sound[8] = {B00001,B00011,B00101,B01001,B01001,B01011,B11011,B11000};
 byte Skull[8] = {B00000, B01110,B10101,B11011,B01110,B01110,B00000,B00000};
 byte Lock[8] = {B01110,B10001,B10001,B11111,B11011,B11011,B11111,B00000};
-byte Menu[8] = {B01110,
-  B11111,
-  B01110,
-  B00000,
-  B01110,
-  B11111,
-  B01110,
-  B00000};
-byte Point[8] = {
-  B00100,
-  B01110,
-  B11111,
-  B01110,
-  B00100,
-  B00000,
-  B00000,
-  B00000
-};
-byte Bars[8] = {
-  B11111,
-  B00000,
-  B00000,
-  B11111,
-  B00000,
-  B00000,
-  B11111,
-  B00000
-};
+byte Menu[8] = {B01110, B11111,B01110,B00000,B01110,B11111,B01110,B00000};
+byte Point[8] = {B00100,B01110,B11111,B01110,B00100,B00000,B00000,B00000};
+byte Bars[8] = {B11111, B00000, B00000, B11111, B00000, B00000, B11111, B00000};
+
+//----------> Rotinas do display de 7 segmentos
+int bat_pct = 0;
+
+void bat_init(){
+  pinMode(bat_sensor, INPUT);
+  bat_pct = analogRead(bat_sensor)*100/1024;
+}
 
 //----------> Inicialização do display de 7 segmentos
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
@@ -142,7 +126,7 @@ void home_screen(){
   present_menu = "home_screen";
 
   String o2_str_aju = String(o2_porcentage)+"%";
-  String bat = String(50)+"%";
+  String bat = String(bat_pct)+"%";
 
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -338,18 +322,47 @@ void gauge_oxi_cell(){
   } 
 }
 
+//----------> Rotinas de alarme
+unsigned long last_delay_o2 = 0;    //Controle de delay o2
+unsigned long o2_delay = 500;       //Tempo de estabilização do o2
+int cont_erros_o2 = 0;              //Quantidade de erros no o2
+
+unsigned long last_delay_bat = 0;   //Controle de delay bateria
+unsigned long bat_delay = 500;      //Tempo de estabilização do bateria
+int cont_erros_bat = 0;             //Quantidade de erros no bateria  
+
+void errors_check(){
+//Validar mistura de o2
+
+//Bateria
+  if ((millis() - last_delay_bat) > bat_delay) {
+    last_delay_bat = millis();
+    bat_pct = analogRead(bat_sensor)*100/1024;
+    if(bat_pct<10){
+      cont_erros_bat++;
+      if(cont_erros_bat>=3){
+        tone(buzzer, 3000, 500);
+        cont_erros_bat = 0;
+      }
+    }else{
+      cont_erros_bat=0;
+    }
+  }
+}
+
 //----------> Rotina de setup
 void setup()
 {
   lcd_init();
   btn_interface_init();
   step_init();
-  // gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
-  // gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2
-  // oxi_cell_init();
-  // gauge_oxi_cell();
+
   calibrate_screen();
-  delay(500);
+  gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
+  gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2
+  oxi_cell_init();
+  gauge_oxi_cell();
+  bat_init();
   welcome_screen();
 }
 
@@ -360,4 +373,5 @@ void loop()
   btn_set_check();
   btn_up_check();
   btn_down_check();
+  errors_check();
 }
