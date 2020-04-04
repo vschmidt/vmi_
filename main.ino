@@ -21,6 +21,7 @@
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 
 //----------> Caracteres de interface
+//https://maxpromer.github.io/LCD-Character-Creator/
 byte Smile[8] = {B00000, B10001, B00000, B00000, B10001, B01110, B00000};
 byte Heart[8] = {B00000, B01010, B11111, B11111, B01110,B00100,B00000,B00000};
 byte Bell[8] = {B00100,B01110,B01110,B01110,B11111,B00000,B00100,B00000};
@@ -30,12 +31,44 @@ byte Speaker[8] = {B00001, B00011,B01111,B01111,B01111,B00011,B00001,B00000};
 byte Sound[8] = {B00001,B00011,B00101,B01001,B01001,B01011,B11011,B11000};
 byte Skull[8] = {B00000, B01110,B10101,B11011,B01110,B01110,B00000,B00000};
 byte Lock[8] = {B01110,B10001,B10001,B11111,B11011,B11011,B11111,B00000};
+byte Menu[8] = {B01110,
+  B11111,
+  B01110,
+  B00000,
+  B01110,
+  B11111,
+  B01110,
+  B00000};
+byte Point[8] = {
+  B00100,
+  B01110,
+  B11111,
+  B01110,
+  B00100,
+  B00000,
+  B00000,
+  B00000
+};
+byte Bars[8] = {
+  B11111,
+  B00000,
+  B00000,
+  B11111,
+  B00000,
+  B00000,
+  B11111,
+  B00000
+};
 
 //----------> Inicialização do display de 7 segmentos
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 //----------> Rotinas do display de 7 segmentos
+String present_menu = "";
+int o2_porcentage = 21;
+
 void lcd_init(){
+  present_menu = "lcd_init";
   //Criação dos caracteres de interface
   lcd.createChar(0, Smile);
   lcd.createChar(1, Heart);
@@ -46,6 +79,9 @@ void lcd_init(){
   lcd.createChar(6, Sound);
   lcd.createChar(7, Skull);
   lcd.createChar(8, Lock);
+  lcd.createChar(9, Menu);  
+  lcd.createChar(10, Point);    
+  lcd.createChar(11, Bars);      
 
   //Definição do tamanho do display
   lcd.begin(16, 2);
@@ -54,7 +90,9 @@ void lcd_init(){
   lcd.clear();
 }
 
+//----------> Funções de aviso
 void check(String msg){
+  present_menu = "check_"+msg;
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.write(byte(4));
@@ -65,6 +103,7 @@ void check(String msg){
 }
 
 void alert(String msg){
+  present_menu = "alert_" + msg;
   tone(buzzer, 440, 500);
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -73,6 +112,68 @@ void alert(String msg){
   lcd.print("Alerta!");
   lcd.setCursor(0, 1);
   lcd.print(msg);
+}
+
+//----------> Funções de Tela
+void calibrate_screen(){
+  present_menu = "calibrate_screen";
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.write(byte(8));
+  lcd.setCursor(2, 0);
+  lcd.print("Calibrando...");
+}
+
+void welcome_screen(){
+  present_menu = "welcome_screen";
+  tone(buzzer, 440, 500);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.write(byte(11));
+  lcd.setCursor(4, 0);
+  lcd.print("BEM VINDO");
+  lcd.setCursor(15, 0);
+  lcd.write(byte(11));
+  lcd.setCursor(1, 1);
+  lcd.print("Pressione MENU");
+}
+
+void home_screen(){
+  present_menu = "home_screen";
+
+  String o2_str_aju = String(o2_porcentage)+"%";
+  String bat = String(50)+"%";
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Ajuste o2: ");
+
+  lcd.setCursor((16-o2_str_aju.length()), 0);
+  lcd.print(o2_str_aju);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Bateria: ");
+  lcd.setCursor((16-bat.length()), 1);
+  lcd.print(bat);
+}
+
+void set_02_screen(){
+  present_menu = "set_02_screen";
+
+  String o2_str_aju = String(o2_porcentage)+"%";
+  String o2_str_med = String(o2_porcentage)+"%";
+  
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Ajustado: ");
+  lcd.setCursor((16-o2_str_aju.length()), 0);
+  lcd.print(o2_str_aju);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Medido: ");
+  lcd.setCursor((16-o2_str_med.length()), 1);
+  lcd.print(o2_str_med);
+
 }
 
 //----------> Variáveis de controle de estado dos botões
@@ -111,9 +212,9 @@ void btn_menu_check(){
       if (read_menu != btn_menu_state) {
         btn_menu_state = read_menu;
         if (btn_menu_state == HIGH) {
-          alert("Clique Menu!");
-          delay(500);
-          lcd.clear();
+          if(present_menu == "welcome_screen" or present_menu=="home_screen"){
+            set_02_screen();
+          }          
         }
       }
     }
@@ -129,9 +230,11 @@ void btn_set_check(){
       if (read_set != btn_set_state) {
         btn_set_state = read_set;
         if (btn_set_state == HIGH) {
-          alert("Clique set!");
-          delay(500);
-          lcd.clear();
+            if(present_menu=="welcome_screen"){
+              set_02_screen();     
+            }else if(present_menu == "set_02_screen"){
+              home_screen();
+            }
         }
       }
     }
@@ -147,9 +250,10 @@ void btn_up_check(){
       if (read_up != btn_up_state) {
         btn_up_state = read_up;
         if (btn_up_state == HIGH) {
-          alert("Clique up!");
-          delay(500);
-          lcd.clear();
+          if((present_menu=="set_02_screen") and (o2_porcentage<=99)){
+            o2_porcentage ++;
+            set_02_screen();
+          }
         }
       }
     }
@@ -165,9 +269,10 @@ void btn_down_check(){
       if (read_down != btn_down_state) {
         btn_down_state = read_down;
         if (btn_down_state == HIGH) {
-          alert("Clique DOWN!");
-          delay(500);
-          lcd.clear();
+          if((present_menu=="set_02_screen") and (o2_porcentage>=22)){
+            o2_porcentage --;
+            set_02_screen();
+          }
         }
       }
     }
@@ -189,7 +294,7 @@ void gauge_stepper(int step_dir, int gaugue, int step){
 
   digitalWrite(step_dir, HIGH);
   
-  if(gaugue_status){ //Está apertado? 
+  if(not gaugue_status){ //Está apertado? 
     //Não...
 
     for (int i = 0; i < stepsPerRevolution/100; i++) { //Muda 1.8º do motor a cada loop
@@ -239,10 +344,13 @@ void setup()
   lcd_init();
   btn_interface_init();
   step_init();
-  gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
-  gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2
-  oxi_cell_init();
-  gauge_oxi_cell();
+  // gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
+  // gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2
+  // oxi_cell_init();
+  // gauge_oxi_cell();
+  calibrate_screen();
+  delay(500);
+  welcome_screen();
 }
 
 //----------> Rotina de loop
