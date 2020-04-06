@@ -41,7 +41,7 @@ int bat_pct = 0;
 
 void bat_init(){
   pinMode(bat_sensor, INPUT);
-  bat_pct = analogRead(bat_sensor)*100/1024;
+  bat_pct = analogRead(bat_sensor)*(100.0/982.0);
 }
 
 //----------> Inicialização do display de 7 segmentos
@@ -49,7 +49,7 @@ LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 //----------> Rotinas do display de 7 segmentos
 String present_menu = "";
-int o2_porcentage = 21;
+unsigned int o2_porcentage_aju = 21;
 
 void lcd_init(){
   present_menu = "lcd_init";
@@ -108,32 +108,27 @@ void calibrate_screen(){
   lcd.print("Calibrando...");
 }
 
-void welcome_screen(){
-  present_menu = "welcome_screen";
-  tone(buzzer, 440, 500);
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.write(byte(11));
-  lcd.setCursor(4, 0);
-  lcd.print("BEM VINDO");
-  lcd.setCursor(15, 0);
-  lcd.write(byte(11));
-  lcd.setCursor(1, 1);
-  lcd.print("Pressione MENU");
-}
-
 void home_screen(){
   present_menu = "home_screen";
 
-  String o2_str_aju = String(o2_porcentage)+"%";
+  float soma = 0;
+
+  for (size_t i = 0; i < 100; i++)
+  {
+    soma += analogRead(gauge_oxi);
+  }
+  
+  float sensor_o2 = soma / 100.0;
+  float sensor_o2_pct = sensor_o2 * (100.0 / 1023.0);
+  String o2_str_med = String(sensor_o2_pct)+"%";
   String bat = String(bat_pct)+"%";
 
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Ajuste o2: ");
+  lcd.print("O2: ");
 
-  lcd.setCursor((16-o2_str_aju.length()), 0);
-  lcd.print(o2_str_aju);
+  lcd.setCursor((16-o2_str_med.length()), 0);
+  lcd.print(o2_str_med);
 
   lcd.setCursor(0, 1);
   lcd.print("Bateria: ");
@@ -144,8 +139,20 @@ void home_screen(){
 void set_02_screen(){
   present_menu = "set_02_screen";
 
-  String o2_str_aju = String(o2_porcentage)+"%";
-  String o2_str_med = String(o2_porcentage)+"%";
+  String o2_str_aju = String(o2_porcentage_aju)+"%";
+
+  float soma = 0;
+
+  for (size_t i = 0; i < 100; i++)
+  {
+    soma += analogRead(gauge_oxi);
+  }
+  
+  float sensor_o2 = soma / 100.0;
+  float sensor_o2_pct = sensor_o2 * (100.0 / 1023.0);
+  String o2_str_med = String(sensor_o2_pct)+"%";
+
+  // o2_porcentage_med = analogRead(gauge_oxi)*100/1024;
   
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -234,8 +241,8 @@ void btn_up_check(){
       if (read_up != btn_up_state) {
         btn_up_state = read_up;
         if (btn_up_state == HIGH) {
-          if((present_menu=="set_02_screen") and (o2_porcentage<=99)){
-            o2_porcentage ++;
+          if((present_menu=="set_02_screen") and (o2_porcentage_aju<=99)){
+            o2_porcentage_aju ++;
             set_02_screen();
           }
         }
@@ -253,8 +260,8 @@ void btn_down_check(){
       if (read_down != btn_down_state) {
         btn_down_state = read_down;
         if (btn_down_state == HIGH) {
-          if((present_menu=="set_02_screen") and (o2_porcentage>=22)){
-            o2_porcentage --;
+          if((present_menu=="set_02_screen") and (o2_porcentage_aju>=22)){
+            o2_porcentage_aju --;
             set_02_screen();
           }
         }
@@ -281,7 +288,9 @@ void gauge_stepper(int step_dir, int gaugue, int step){
   if(not gaugue_status){ //Está apertado? 
     //Não...
 
-    for (int i = 0; i < stepsPerRevolution/100; i++) { //Muda 1.8º do motor a cada loop
+    delay(500);
+
+    for (int i = 0; i < stepsPerRevolution/10; i++) { //Muda 1.8º do motor a cada loop
       digitalWrite(step, HIGH);
       delayMicroseconds(1000);
       digitalWrite(step, LOW);
@@ -302,24 +311,24 @@ void oxi_cell_init(){
 void gauge_oxi_cell(){
   digitalWrite(step_dir_1, LOW); //Seta o sentido de giro anti horário
   
-  for (int i = 0; i < stepsPerRevolution; i++) { //Abre 100% a linha de oxigenio
-    digitalWrite(step_1, HIGH);
-    delayMicroseconds(1000);
-    digitalWrite(step_1, LOW);
-    delayMicroseconds(1000);
-  }
+  // for (int i = 0; i < stepsPerRevolution; i++) { //Abre 100% a linha de oxigenio
+  //   digitalWrite(step_1, HIGH);
+  //   delayMicroseconds(1000);
+  //   digitalWrite(step_1, LOW);
+  //   delayMicroseconds(1000);
+  // }
   
-  delay(500); //Espera x
+  // delay(500); //Espera x
   
-  float oxi_cell_read = analogRead(gauge_oxi); //Verifica a tensão da célula
+  // float oxi_cell_read = analogRead(gauge_oxi); //Verifica a tensão da célula
 
-  if(((512 - oxi_cell_tol) < oxi_cell_read) and (oxi_cell_read < (512 + oxi_cell_tol))){
-    check("Calibrado!");
-    delay(500);
-  }else{ //Precisa de ajuste
-    alert("Célula precisa de substituição!");
-    delay(500);
-  } 
+  // if(((512 - oxi_cell_tol) < oxi_cell_read) and (oxi_cell_read < (512 + oxi_cell_tol))){
+  //   check("Calibrado!");
+  //   delay(500);
+  // }else{ //Precisa de ajuste
+  //   alert("Célula precisa de substituição!");
+  //   delay(500);
+  // } 
 }
 
 //----------> Rotinas de alarme
@@ -332,12 +341,9 @@ unsigned long bat_delay = 500;      //Tempo de estabilização do bateria
 int cont_erros_bat = 0;             //Quantidade de erros no bateria  
 
 void errors_check(){
-//Validar mistura de o2
-
-//Bateria
   if ((millis() - last_delay_bat) > bat_delay) {
     last_delay_bat = millis();
-    bat_pct = analogRead(bat_sensor)*100/1024;
+    bat_pct = analogRead(bat_sensor)*(100.0/982.0);
     if(bat_pct<10){
       cont_erros_bat++;
       if(cont_erros_bat>=3){
@@ -348,6 +354,21 @@ void errors_check(){
       cont_erros_bat=0;
     }
   }
+}
+
+//----------> Rotina de Atualização da Tela
+unsigned long last_delay_update = 0;   //Controle de delay de atualização da tela
+unsigned long update_delay = 1000;      //Tempo de atualização da tela  
+
+void update_screen(){
+  if(( millis() - last_delay_update ) > update_delay){
+    last_delay_update = millis();
+    if(present_menu=="home_screen"){
+      home_screen();
+    }else if(present_menu=="set_02_screen"){
+      set_02_screen();
+    }
+  }  
 }
 
 //----------> Rotina de setup
@@ -363,7 +384,7 @@ void setup()
   oxi_cell_init();
   gauge_oxi_cell();
   bat_init();
-  welcome_screen();
+  set_02_screen();
 }
 
 //----------> Rotina de loop
@@ -373,5 +394,6 @@ void loop()
   btn_set_check();
   btn_up_check();
   btn_down_check();
+  update_screen();
   errors_check();
 }
