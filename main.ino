@@ -271,6 +271,8 @@ void btn_down_check(){
 }
 
 //----------> Rotinas do motor de passo
+int pct_tol = 5;
+
 void step_init(){
   pinMode(step_1, OUTPUT);
   pinMode(step_dir_1, OUTPUT);
@@ -280,24 +282,67 @@ void step_init(){
   pinMode(gaugue_2,INPUT);
 }
 
-void gauge_stepper(int step_dir, int gaugue, int step){
+bool gauge_stepper(int step_dir, int gaugue, int step){
   int gaugue_status = digitalRead(gaugue);
 
   digitalWrite(step_dir, HIGH);
   
   if(not gaugue_status){ //Está apertado? 
     //Não...
-
-    delay(500);
-
     for (int i = 0; i < stepsPerRevolution/10; i++) { //Muda 1.8º do motor a cada loop
       digitalWrite(step, HIGH);
       delayMicroseconds(1000);
       digitalWrite(step, LOW);
       delayMicroseconds(1000);
     }   
+    return false;
+  }else{
+    //Sim...
+    return true;
+  }
+}
 
-    gauge_stepper(step_dir, gaugue, step); //Novo ajuste
+void stepper_update(){
+  //Lê o valor da célula
+  float soma = 0;
+  for (size_t i = 0; i < 100; i++)
+  {
+    soma += analogRead(gauge_oxi);
+  }
+  float sensor_o2 = soma / 100.0;
+  float sensor_o2_pct = sensor_o2 * (100.0 / 1023.0);
+ 
+  if(sensor_o2_pct<(o2_porcentage_aju-pct_tol)){//Se o valor lido estiver abaixo da tolerância 
+    digitalWrite(step_dir_1, LOW); 
+    for (int i = 0; i < stepsPerRevolution/10; i++) { //Abre 1,8º do motor 1
+      digitalWrite(step_1, HIGH);
+      delayMicroseconds(1000);
+      digitalWrite(step_1, LOW);
+      delayMicroseconds(1000);
+    }
+    digitalWrite(step_dir_2, HIGH); 
+    for (int i = 0; i < stepsPerRevolution/10; i++) { //Fecha 1,8º do motor 2
+      digitalWrite(step_2, HIGH);
+      delayMicroseconds(1000);
+      digitalWrite(step_2, LOW);
+      delayMicroseconds(1000);
+    }
+
+  }else if(sensor_o2_pct>(o2_porcentage_aju+pct_tol)){//Senão, se o ajuste estiver acima da tolerância 
+    digitalWrite(step_dir_2, LOW); 
+    for (int i = 0; i < stepsPerRevolution/10; i++) { //Abre 1,8º do motor 2
+      digitalWrite(step_2, HIGH);
+      delayMicroseconds(1000);
+      digitalWrite(step_2, LOW);
+      delayMicroseconds(1000);
+    }
+    digitalWrite(step_dir_1, HIGH); 
+    for (int i = 0; i < stepsPerRevolution/10; i++) { //Fecha 1,8º do motor 1
+      digitalWrite(step_1, HIGH);
+      delayMicroseconds(1000);
+      digitalWrite(step_1, LOW);
+      delayMicroseconds(1000);
+    }
   }
 }
 
@@ -306,29 +351,6 @@ int oxi_cell_tol = 50;
 
 void oxi_cell_init(){
   pinMode(gauge_oxi, INPUT);
-}
-
-void gauge_oxi_cell(){
-  digitalWrite(step_dir_1, LOW); //Seta o sentido de giro anti horário
-  
-  // for (int i = 0; i < stepsPerRevolution; i++) { //Abre 100% a linha de oxigenio
-  //   digitalWrite(step_1, HIGH);
-  //   delayMicroseconds(1000);
-  //   digitalWrite(step_1, LOW);
-  //   delayMicroseconds(1000);
-  // }
-  
-  // delay(500); //Espera x
-  
-  // float oxi_cell_read = analogRead(gauge_oxi); //Verifica a tensão da célula
-
-  // if(((512 - oxi_cell_tol) < oxi_cell_read) and (oxi_cell_read < (512 + oxi_cell_tol))){
-  //   check("Calibrado!");
-  //   delay(500);
-  // }else{ //Precisa de ajuste
-  //   alert("Célula precisa de substituição!");
-  //   delay(500);
-  // } 
 }
 
 //----------> Rotinas de alarme
@@ -372,28 +394,41 @@ void update_screen(){
 }
 
 //----------> Rotina de setup
-void setup()
-{
+bool step1_gauge = false, step2_gauge = false;  //Loop de calibração
+unsigned long last_delay_gauge = 0;           //Controle de delay de atualização da calibração do motor
+unsigned long update_delay_gauge = 200;       //Tempo de atualização da calibração
+
+void setup(){
   lcd_init();
   btn_interface_init();
   step_init();
-
   calibrate_screen();
-  gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
-  gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2
-  oxi_cell_init();
-  gauge_oxi_cell();
+
+  while(not step1_gauge or not step2_gauge){ //Aperta até o aperto dos dois motores
+    if((millis()-update_delay_gauge)>last_delay_gauge){
+      last_delay_gauge=millis();
+
+      if(not step1_gauge){
+        step1_gauge = gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
+      }
+      if(not step2_gauge){
+        step2_gauge = gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2  
+      }    
+    }    
+  }
+
   bat_init();
   set_02_screen();
 }
 
 //----------> Rotina de loop
-void loop()
-{
+void loop(){
   btn_menu_check();
   btn_set_check();
   btn_up_check();
   btn_down_check();
+  stepper_update();
+
   update_screen();
   errors_check();
 }
