@@ -271,39 +271,16 @@ void btn_down_check(){
 }
 
 //----------> Rotinas do motor de passo
-int pct_tol = 5;
+int pct_tol = 2;
 
 void step_init(){
   pinMode(step_1, OUTPUT);
   pinMode(step_dir_1, OUTPUT);
-  pinMode(step_2, OUTPUT);
-  pinMode(step_dir_2, OUTPUT);
   pinMode(gaugue_1,INPUT);
-  pinMode(gaugue_2,INPUT);
 }
 
-bool gauge_stepper(int step_dir, int gaugue, int step){
-  int gaugue_status = digitalRead(gaugue);
-
-  digitalWrite(step_dir, HIGH);
-  
-  if(not gaugue_status){ //Está apertado? 
-    //Não...
-    for (int i = 0; i < stepsPerRevolution/10; i++) { //Muda 1.8º do motor a cada loop
-      digitalWrite(step, HIGH);
-      delayMicroseconds(1000);
-      digitalWrite(step, LOW);
-      delayMicroseconds(1000);
-    }   
-    return false;
-  }else{
-    //Sim...
-    return true;
-  }
-}
-
-void stepper_update(){
-  //Lê o valor da célula
+void stepper_pid(){
+  //Lê o valor da célula com um filtro de média
   float soma = 0;
   for (size_t i = 0; i < 100; i++)
   {
@@ -313,6 +290,14 @@ void stepper_update(){
   float sensor_o2_pct = sensor_o2 * (100.0 / 1023.0);
  
   if(sensor_o2_pct<(o2_porcentage_aju-pct_tol)){//Se o valor lido estiver abaixo da tolerância 
+    
+    float proportional_error = abs(o2_porcentage_aju - sensor_o2_pct);
+
+    //Convert to 1-5 scale
+    proportional_error = (5*proportional_error)/100;
+    alert(String(proportional_error));
+    delay(200);
+  
     digitalWrite(step_dir_1, LOW); 
     for (int i = 0; i < stepsPerRevolution/10; i++) { //Abre 1,8º do motor 1
       digitalWrite(step_1, HIGH);
@@ -320,22 +305,13 @@ void stepper_update(){
       digitalWrite(step_1, LOW);
       delayMicroseconds(1000);
     }
-    digitalWrite(step_dir_2, HIGH); 
-    for (int i = 0; i < stepsPerRevolution/10; i++) { //Fecha 1,8º do motor 2
-      digitalWrite(step_2, HIGH);
-      delayMicroseconds(1000);
-      digitalWrite(step_2, LOW);
-      delayMicroseconds(1000);
-    }
-
   }else if(sensor_o2_pct>(o2_porcentage_aju+pct_tol)){//Senão, se o ajuste estiver acima da tolerância 
-    digitalWrite(step_dir_2, LOW); 
-    for (int i = 0; i < stepsPerRevolution/10; i++) { //Abre 1,8º do motor 2
-      digitalWrite(step_2, HIGH);
-      delayMicroseconds(1000);
-      digitalWrite(step_2, LOW);
-      delayMicroseconds(1000);
-    }
+    float proportional_error = abs(o2_porcentage_aju - sensor_o2_pct);
+    //Convert to 1-5 scale
+    proportional_error = (5*proportional_error)/100;
+    alert(String(proportional_error));
+    delay(200);
+
     digitalWrite(step_dir_1, HIGH); 
     for (int i = 0; i < stepsPerRevolution/10; i++) { //Fecha 1,8º do motor 1
       digitalWrite(step_1, HIGH);
@@ -394,41 +370,26 @@ void update_screen(){
 }
 
 //----------> Rotina de setup
-bool step1_gauge = false, step2_gauge = false;  //Loop de calibração
-unsigned long last_delay_gauge = 0;           //Controle de delay de atualização da calibração do motor
-unsigned long update_delay_gauge = 200;       //Tempo de atualização da calibração
 
 void setup(){
   lcd_init();
   btn_interface_init();
   step_init();
   calibrate_screen();
-
-  while(not step1_gauge or not step2_gauge){ //Aperta até o aperto dos dois motores
-    if((millis()-update_delay_gauge)>last_delay_gauge){
-      last_delay_gauge=millis();
-
-      if(not step1_gauge){
-        step1_gauge = gauge_stepper(step_dir_1, gaugue_1, step_1); //Ajuste do motor 1
-      }
-      if(not step2_gauge){
-        step2_gauge = gauge_stepper(step_dir_2, gaugue_2, step_2); //Ajuste do motor 2  
-      }    
-    }    
-  }
-
   bat_init();
   set_02_screen();
 }
 
 //----------> Rotina de loop
+unsigned long last_delay_gauge = 0;           //Controle de delay de atualização da calibração do motor
+unsigned long update_delay_gauge = 200;       //Tempo de atualização da calibração
+
 void loop(){
   btn_menu_check();
   btn_set_check();
   btn_up_check();
   btn_down_check();
-  stepper_update();
-
+  stepper_pid();
   update_screen();
   errors_check();
 }
