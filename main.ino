@@ -295,8 +295,6 @@ void stepper_pid(){
 
     //Convert to 1-5 scale
     proportional_error = (5*proportional_error)/100;
-    alert(String(proportional_error));
-    delay(200);
   
     digitalWrite(step_dir_1, LOW); 
     for (int i = 0; i < stepsPerRevolution/10; i++) { //Abre 1,8º do motor 1
@@ -309,8 +307,6 @@ void stepper_pid(){
     float proportional_error = abs(o2_porcentage_aju - sensor_o2_pct);
     //Convert to 1-5 scale
     proportional_error = (5*proportional_error)/100;
-    alert(String(proportional_error));
-    delay(200);
 
     digitalWrite(step_dir_1, HIGH); 
     for (int i = 0; i < stepsPerRevolution/10; i++) { //Fecha 1,8º do motor 1
