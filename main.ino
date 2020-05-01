@@ -299,9 +299,9 @@ void stepper_pid(){
     digitalWrite(step_dir_1, LOW); 
     for (int i = 0; i < stepsPerRevolution/10; i++) { //Abre 1,8º do motor 1
       digitalWrite(step_1, HIGH);
-      delayMicroseconds(1000);
+      delayMicroseconds(1000/proportional_error);
       digitalWrite(step_1, LOW);
-      delayMicroseconds(1000);
+      delayMicroseconds(1000/proportional_error);
     }
   }else if(sensor_o2_pct>(o2_porcentage_aju+pct_tol)){//Senão, se o ajuste estiver acima da tolerância 
     float proportional_error = abs(o2_porcentage_aju - sensor_o2_pct);
@@ -311,9 +311,9 @@ void stepper_pid(){
     digitalWrite(step_dir_1, HIGH); 
     for (int i = 0; i < stepsPerRevolution/10; i++) { //Fecha 1,8º do motor 1
       digitalWrite(step_1, HIGH);
-      delayMicroseconds(1000);
+      delayMicroseconds(1000*proportional_error);
       digitalWrite(step_1, LOW);
-      delayMicroseconds(1000);
+      delayMicroseconds(1000*proportional_error);
     }
   }
 }
